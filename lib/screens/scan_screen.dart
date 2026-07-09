@@ -156,7 +156,7 @@ class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateM
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Stallningen',
+                              'Slivest',
                               style: GoogleFonts.outfit(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,

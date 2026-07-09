@@ -242,9 +242,9 @@ class _ProductCard extends StatelessWidget {
                       FilledButton.tonalIcon(
                         onPressed: () async {
                           var url = Uri.parse('https://www.amazon.com/s?k=${Uri.encodeComponent(product.name)}');
-                          if (await canLaunchUrl(url)) {
+                          try {
                             await launchUrl(url, mode: LaunchMode.externalApplication);
-                          }
+                          } catch (_) {}
                         },
                         icon: const Icon(Icons.add_shopping_cart, size: 14),
                         label: Text(

@@ -121,7 +121,7 @@ class _PulsingHazardBoxState extends State<_PulsingHazardBox> with SingleTickerP
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
 
-    _opacityAnimation = Tween<double>(begin: 0.15, end: 0.45).animate(
+    _opacityAnimation = Tween<double>(begin: 0.30, end: 0.70).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }

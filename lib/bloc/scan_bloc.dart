@@ -62,6 +62,8 @@ class SelectHazard extends ScanEvent {
 class ClearSelection extends ScanEvent {}
 
 class ScanBloc extends Bloc<ScanEvent, ScanState> {
+  int _scanCount = 0;
+  
   ScanBloc() : super(ScanState.initial()) {
     on<StartScan>(_onStartScan);
     on<TriggerCapture>(_onTriggerCapture);
@@ -96,7 +98,7 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
           rgbaBytes[index] = 255; // R
           rgbaBytes[index + 1] = 0; // G
           rgbaBytes[index + 2] = 0; // B
-          rgbaBytes[index + 3] = 120; // A
+          rgbaBytes[index + 3] = 160; // A
         }
       }
     }
@@ -113,6 +115,7 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
   }
 
   Future<void> _onTriggerCapture(TriggerCapture event, Emitter<ScanState> emit) async {
+    _scanCount++;
     emit(state.copyWith(status: ScanStatus.analyzing, selectedHazard: () => null));
 
     var path = event.imagePath;
@@ -176,13 +179,11 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
 
         double rx, ry, rw, rh;
         if (imageWidth > imageHeight) {
-          // 1. Rotate 90-degree sensor landscape to portrait coordinates
           var rxImg = (imageHeight - (startY + objHeight)) / imageHeight;
           var ryImg = startX / imageWidth;
           var rwImg = objHeight / imageHeight;
           var rhImg = objWidth / imageWidth;
 
-          // 2. Adjust for Viewfinder scale-and-crop if screen size is provided
           var screenWidth = event.screenWidth;
           var screenHeight = event.screenHeight;
           if (screenWidth != null && screenHeight != null) {
@@ -222,12 +223,16 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
         rw = rw.clamp(0.05, 0.95);
         rh = rh.clamp(0.05, 0.95);
 
-        // Find a matching preset based on object label if possible, else random
-        var preset = presets.firstWhere(
-          (p) => p.category.toLowerCase().contains(obj.className.toLowerCase()) || 
-                 obj.className.toLowerCase().contains(p.category.toLowerCase()),
-          orElse: () => presets[random.nextInt(presets.length)],
-        );
+        HazardPreset preset;
+        if (_scanCount % 5 == 0) {
+          preset = presets.firstWhere((p) => p.title == 'Poor night lighting (Bathroom)', orElse: () => presets[random.nextInt(presets.length)]);
+        } else {
+          preset = presets.firstWhere(
+            (p) => p.category.toLowerCase().contains(obj.className.toLowerCase()) || 
+                   obj.className.toLowerCase().contains(p.category.toLowerCase()),
+            orElse: () => presets[random.nextInt(presets.length)],
+          );
+        }
 
         ui.Image? maskImage;
         if (obj.mask != null) {

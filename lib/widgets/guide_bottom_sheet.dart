@@ -127,9 +127,9 @@ class _GuideBottomSheetState extends State<GuideBottomSheet> {
                           trailing: FilledButton.tonal(
                             onPressed: () async {
                               var url = Uri.parse('https://www.amazon.com/s?k=${Uri.encodeComponent(product.name)}');
-                              if (await canLaunchUrl(url)) {
+                              try {
                                 await launchUrl(url, mode: LaunchMode.externalApplication);
-                              }
+                              } catch (_) {}
                             },
                             child: const Text('Find'),
                           ),
