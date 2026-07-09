@@ -7,6 +7,7 @@ import '../widgets/viewfinder_widget.dart';
 import '../widgets/camera_button.dart';
 import '../widgets/hazard_overlay.dart';
 import '../widgets/hazard_details_sheet.dart';
+import '../widgets/guide_bottom_sheet.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -119,12 +120,12 @@ class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateM
                     },
                   ),
 
-                // 3. Danger Highlight Overlays
+                // 3. Danger Highlight Overlays (Fullscreen)
                 if (isAnalyzed)
-                  SafeArea(
+                  Positioned.fill(
                     child: HazardOverlay(
                       hazards: state.hazards,
-                      constraintSize: Size(size.width, size.height - kToolbarHeight - 120),
+                      constraintSize: Size(size.width, size.height),
                       onHazardTap: (hazard) => context.read<ScanBloc>().add(SelectHazard(hazard)),
                     ),
                   ),
@@ -230,7 +231,13 @@ class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateM
                                 if (controller != null && controller.value.isInitialized) {
                                   try {
                                     var file = await controller.takePicture();
-                                    bloc.add(TriggerCapture(imagePath: file.path));
+                                    bloc.add(
+                                      TriggerCapture(
+                                        imagePath: file.path,
+                                        screenWidth: size.width,
+                                        screenHeight: size.height,
+                                      ),
+                                    );
                                   } catch (_) {
                                     bloc.add(TriggerCapture(imagePath: null));
                                   }
@@ -242,8 +249,26 @@ class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateM
                               isDisabled: isAnalyzed,
                             ),
 
-                            // Visual Spacer matching the Reset button size
-                            const SizedBox(width: 48),
+                            // Guide Button
+                            IconButton.filledTonal(
+                              onPressed: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (sheetContext) => const FractionallySizedBox(
+                                    heightFactor: 0.85,
+                                    child: GuideBottomSheet(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.info_outline_rounded),
+                              style: IconButton.styleFrom(
+                                padding: const EdgeInsets.all(16),
+                                backgroundColor: Colors.white.withValues(alpha: 0.15),
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
                           ],
                         ),
                       ],

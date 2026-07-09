@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:ui' as ui;
 import '../models/hazard.dart';
 
 class HazardOverlay extends StatelessWidget {
@@ -144,6 +145,7 @@ class _PulsingHazardBoxState extends State<_PulsingHazardBox> with SingleTickerP
           return CustomPaint(
             painter: _SegmentationPainter(
               category: widget.hazard.category,
+              maskImage: widget.hazard.maskImage,
               fillColor: theme.colorScheme.error.withValues(alpha: _opacityAnimation.value),
               strokeColor: theme.colorScheme.error,
             ),
@@ -156,17 +158,29 @@ class _PulsingHazardBoxState extends State<_PulsingHazardBox> with SingleTickerP
 
 class _SegmentationPainter extends CustomPainter {
   final String category;
+  final ui.Image? maskImage;
   final Color fillColor;
   final Color strokeColor;
 
   _SegmentationPainter({
     required this.category,
+    this.maskImage,
     required this.fillColor,
     required this.strokeColor,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (maskImage != null) {
+      var src = Rect.fromLTWH(0, 0, maskImage!.width.toDouble(), maskImage!.height.toDouble());
+      var dst = Rect.fromLTWH(0, 0, size.width, size.height);
+
+      var paint = Paint()..colorFilter = ColorFilter.mode(fillColor, BlendMode.srcIn);
+
+      canvas.drawImageRect(maskImage!, src, dst, paint);
+      return;
+    }
+
     var fillPaint = Paint()
       ..color = fillColor
       ..style = PaintingStyle.fill;

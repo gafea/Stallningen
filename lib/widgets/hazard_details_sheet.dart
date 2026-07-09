@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/hazard.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HazardDetailsSheet extends StatelessWidget {
   final Hazard hazard;
@@ -55,21 +56,6 @@ class HazardDetailsSheet extends StatelessWidget {
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '+${hazard.dangerScoreIncrease}% Risk',
-                    style: GoogleFonts.outfit(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onErrorContainer,
                     ),
                   ),
                 ),
@@ -254,13 +240,11 @@ class _ProductCard extends StatelessWidget {
 
                       // Action Button
                       FilledButton.tonalIcon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Added ${product.name} to safety cart'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
+                        onPressed: () async {
+                          var url = Uri.parse('https://www.amazon.com/s?k=${Uri.encodeComponent(product.name)}');
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(url, mode: LaunchMode.externalApplication);
+                          }
                         },
                         icon: const Icon(Icons.add_shopping_cart, size: 14),
                         label: Text(

@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 class Product {
   final String id;
   final String name;
@@ -29,6 +31,7 @@ class Hazard {
   final double relativeHeight;
   final String category;
   final List<Product> recommendedProducts;
+  final ui.Image? maskImage;
 
   const Hazard({
     required this.id,
@@ -40,6 +43,7 @@ class Hazard {
     required this.relativeWidth,
     required this.relativeHeight,
     required this.recommendedProducts,
+    this.maskImage,
     this.category = 'default',
   });
 

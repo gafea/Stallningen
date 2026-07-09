@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
+import 'package:google_mlkit_subject_segmentation/google_mlkit_subject_segmentation.dart';
 import '../models/hazard.dart';
 import '../models/preset_hazards.dart';
 
@@ -47,7 +48,9 @@ class StartScan extends ScanEvent {}
 
 class TriggerCapture extends ScanEvent {
   final String? imagePath;
-  TriggerCapture({this.imagePath});
+  final double? screenWidth;
+  final double? screenHeight;
+  TriggerCapture({this.imagePath, this.screenWidth, this.screenHeight});
 }
 
 class SelectHazard extends ScanEvent {
@@ -67,6 +70,29 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
 
   void _onStartScan(StartScan event, Emitter<ScanState> emit) {
     emit(ScanState.initial());
+  }
+
+  Future<ui.Image?> _createMaskImage(Float32List? mask, int width, int height) async {
+    if (mask == null || mask.isEmpty || width <= 0 || height <= 0) return null;
+    var rgbaBytes = Uint8List(width * height * 4);
+    for (int i = 0; i < mask.length; i++) {
+      if (mask[i] > 0.5) {
+        rgbaBytes[i * 4] = 255; // R
+        rgbaBytes[i * 4 + 1] = 0; // G
+        rgbaBytes[i * 4 + 2] = 0; // B
+        rgbaBytes[i * 4 + 3] = 120; // A
+      }
+    }
+
+    var completer = Completer<ui.Image>();
+    ui.decodeImageFromPixels(
+      rgbaBytes,
+      width,
+      height,
+      ui.PixelFormat.rgba8888,
+      completer.complete,
+    );
+    return completer.future;
   }
 
   Future<void> _onTriggerCapture(TriggerCapture event, Emitter<ScanState> emit) async {
@@ -91,17 +117,21 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
       var imageWidth = frameInfo.image.width.toDouble();
       var imageHeight = frameInfo.image.height.toDouble();
 
-      var options = ObjectDetectorOptions(
-        mode: DetectionMode.single,
-        classifyObjects: true,
-        multipleObjects: true,
+      var options = SubjectSegmenterOptions(
+        enableForegroundConfidenceMask: false,
+        enableMultipleSubjects: const SubjectResultOptions(
+          enableConfidenceMask: true,
+          enableSubjectBitmap: false,
+        ),
       );
-      var objectDetector = ObjectDetector(options: options);
+      var subjectSegmenter = SubjectSegmenter(options: options);
 
       var inputImage = InputImage.fromFilePath(path);
-      var detectedObjects = await objectDetector.processImage(inputImage);
+      var result = await subjectSegmenter.processImage(inputImage);
 
-      await objectDetector.close();
+      await subjectSegmenter.close();
+
+      var detectedObjects = result.subjects ?? [];
 
       if (detectedObjects.isEmpty) {
         emit(
@@ -114,8 +144,8 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
       }
 
       detectedObjects.sort((a, b) {
-        var areaA = a.boundingBox.width * a.boundingBox.height;
-        var areaB = b.boundingBox.width * b.boundingBox.height;
+        var areaA = a.width * a.height;
+        var areaB = b.width * b.height;
         return areaB.compareTo(areaA);
       });
       var topTwoObjects = detectedObjects.take(2).toList();
@@ -125,30 +155,61 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
       List<Hazard> mappedHazards = [];
       for (var i = 0; i < topTwoObjects.length; i++) {
         var obj = topTwoObjects[i];
-        var rect = obj.boundingBox;
 
         double rx, ry, rw, rh;
         if (imageWidth > imageHeight) {
-          // 90-degree sensor rotation coordinate mapping
-          rx = (imageHeight - rect.bottom) / imageHeight;
-          ry = rect.left / imageWidth;
-          rw = rect.height / imageHeight;
-          rh = rect.width / imageWidth;
+          // 1. Rotate 90-degree sensor landscape to portrait coordinates
+          var rxImg = (imageHeight - (obj.startY + obj.height)) / imageHeight;
+          var ryImg = obj.startX / imageWidth;
+          var rwImg = obj.height / imageHeight;
+          var rhImg = obj.width / imageWidth;
+
+          // 2. Adjust for Viewfinder scale-and-crop if screen size is provided
+          var screenWidth = event.screenWidth;
+          var screenHeight = event.screenHeight;
+          if (screenWidth != null && screenHeight != null) {
+            var portraitRatio = imageHeight / imageWidth;
+            var screenRatio = screenWidth / screenHeight;
+
+            if (screenRatio < portraitRatio) {
+              var scale = portraitRatio / screenRatio;
+              var leftCrop = (1.0 - 1.0 / scale) / 2.0;
+              rx = (rxImg - leftCrop) * scale;
+              ry = ryImg;
+              rw = rwImg * scale;
+              rh = rhImg;
+            } else {
+              var scale = screenRatio / portraitRatio;
+              var topCrop = (1.0 - 1.0 / scale) / 2.0;
+              rx = rxImg;
+              ry = (ryImg - topCrop) * scale;
+              rw = rwImg;
+              rh = rhImg * scale;
+            }
+          } else {
+            rx = rxImg;
+            ry = ryImg;
+            rw = rwImg;
+            rh = rhImg;
+          }
         } else {
-          rx = rect.left / imageWidth;
-          ry = rect.top / imageHeight;
-          rw = rect.width / imageWidth;
-          rh = rect.height / imageHeight;
+          rx = obj.startX / imageWidth;
+          ry = obj.startY / imageHeight;
+          rw = obj.width / imageWidth;
+          rh = obj.height / imageHeight;
         }
 
-        // Clamp coordinates cleanly
         rx = rx.clamp(0.0, 0.95);
         ry = ry.clamp(0.0, 0.95);
         rw = rw.clamp(0.05, 0.95);
         rh = rh.clamp(0.05, 0.95);
 
-        // Select a random hazard preset
         var preset = presets[random.nextInt(presets.length)];
+
+        ui.Image? maskImage;
+        if (obj.confidenceMask != null) {
+          maskImage = await _createMaskImage(obj.confidenceMask, obj.width, obj.height);
+        }
 
         mappedHazards.add(
           Hazard(
@@ -162,6 +223,7 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
             relativeWidth: rw,
             relativeHeight: rh,
             recommendedProducts: preset.recommendedProducts,
+            maskImage: maskImage,
           ),
         );
       }
@@ -194,7 +256,6 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
     var presets = HazardPreset.getPresets();
     var random = Random();
 
-    // Choose 2 distinct random indexes
     var firstIdx = random.nextInt(presets.length);
     var secondIdx = (firstIdx + 1 + random.nextInt(presets.length - 1)) % presets.length;
 
