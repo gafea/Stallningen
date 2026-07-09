@@ -72,7 +72,7 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
     emit(ScanState.initial());
   }
 
-  Future<ui.Image?> _createMaskImage(Float32List? mask, int width, int height) async {
+  Future<ui.Image?> _createMaskImage(List<double>? mask, int width, int height) async {
     if (mask == null || mask.isEmpty || width <= 0 || height <= 0) return null;
     var rgbaBytes = Uint8List(width * height * 4);
     for (int i = 0; i < mask.length; i++) {
@@ -119,7 +119,8 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
 
       var options = SubjectSegmenterOptions(
         enableForegroundConfidenceMask: false,
-        enableMultipleSubjects: const SubjectResultOptions(
+        enableForegroundBitmap: false,
+        enableMultipleSubjects: SubjectResultOptions(
           enableConfidenceMask: true,
           enableSubjectBitmap: false,
         ),
