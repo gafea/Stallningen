@@ -15,7 +15,7 @@ class FallGuardApp extends StatelessWidget {
     const brandBlue = Color(0xFF0F62FE);
 
     return MaterialApp(
-      title: 'FallGuard AI',
+      title: 'Stallningen',
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.dark, // Camera apps feel best in dark UI
       theme: ThemeData(

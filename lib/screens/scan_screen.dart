@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:camera/camera.dart';
 import '../bloc/scan_bloc.dart';
 import '../widgets/viewfinder_widget.dart';
 import '../widgets/camera_button.dart';
@@ -17,6 +18,7 @@ class ScanScreen extends StatefulWidget {
 class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateMixin {
   late AnimationController _scanningController;
   late Animation<double> _scanningAnimation;
+  CameraController? _cameraController;
 
   @override
   void initState() {
@@ -82,7 +84,7 @@ class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateM
                 ViewfinderWidget(
                   isFrozen: isAnalyzing || isAnalyzed,
                   isAnalyzing: isAnalyzing,
-                  onControllerCreated: (_) {},
+                  onControllerCreated: (controller) => _cameraController = controller,
                 ),
 
                 // 2. Holographic Scanning Line Animation
@@ -153,7 +155,7 @@ class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateM
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Stallningen AI',
+                              'Stallningen',
                               style: GoogleFonts.outfit(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
@@ -161,37 +163,7 @@ class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateM
                                 letterSpacing: 0.5,
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              isAnalyzing
-                                  ? 'Analyzing space...'
-                                  : (isAnalyzed ? 'Scan completed' : 'Scan Room For Fall Hazards'),
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: Colors.white.withValues(alpha: 0.7),
-                              ),
-                            ),
                           ],
-                        ),
-                        // Indicator dot showing state
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isAnalyzing ? Colors.amber : (isAnalyzed ? theme.colorScheme.primary : Colors.green),
-                            boxShadow: [
-                              BoxShadow(
-                                color:
-                                    (isAnalyzing
-                                            ? Colors.amber
-                                            : (isAnalyzed ? theme.colorScheme.primary : Colors.green))
-                                        .withValues(alpha: 0.5),
-                                blurRadius: 6,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
                         ),
                       ],
                     ),
@@ -252,7 +224,20 @@ class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateM
 
                             // Central Shutter Button
                             CameraButton(
-                              onTap: () => context.read<ScanBloc>().add(TriggerCapture()),
+                              onTap: () async {
+                                var bloc = context.read<ScanBloc>();
+                                var controller = _cameraController;
+                                if (controller != null && controller.value.isInitialized) {
+                                  try {
+                                    var file = await controller.takePicture();
+                                    bloc.add(TriggerCapture(imagePath: file.path));
+                                  } catch (_) {
+                                    bloc.add(TriggerCapture(imagePath: null));
+                                  }
+                                } else {
+                                  bloc.add(TriggerCapture(imagePath: null));
+                                }
+                              },
                               isLoading: isAnalyzing,
                               isDisabled: isAnalyzed,
                             ),

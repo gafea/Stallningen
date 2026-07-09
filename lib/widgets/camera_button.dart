@@ -49,6 +49,7 @@ class _CameraButtonState extends State<CameraButton> with SingleTickerProviderSt
     if (!widget.isDisabled && !widget.isLoading) {
       _controller.reverse();
       HapticFeedback.mediumImpact();
+      HapticFeedback.vibrate();
       widget.onTap();
     }
   }
