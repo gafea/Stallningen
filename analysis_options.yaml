@@ -1,0 +1,46 @@
+analyzer:
+  exclude:
+    - extlib/**
+
+formatter:
+  trailing_commas: preserve
+  page_width: 120
+
+linter:
+  rules:
+    - avoid_relative_lib_imports
+    - avoid_unnecessary_containers
+    - eol_at_end_of_file
+    - prefer_const_constructors
+    - require_trailing_commas
+    - unnecessary_async
+    - unnecessary_await_in_return
+    - unnecessary_brace_in_string_interps
+    - unnecessary_breaks
+    - unnecessary_const
+    - unnecessary_constructor_name
+    - unnecessary_final
+    - unnecessary_getters_setters
+    - unnecessary_ignore
+    - unnecessary_lambdas
+    - unnecessary_late
+    - unnecessary_library_directive
+    - unnecessary_library_name
+    - unnecessary_new
+    - unnecessary_null_aware_assignments
+    - unnecessary_null_aware_operator_on_extension_on_nullable
+    - unnecessary_null_checks
+    - unnecessary_null_in_if_null_operators
+    - unnecessary_nullable_for_final_variable_declarations
+    - unnecessary_overrides
+    - unnecessary_parenthesis
+    - unnecessary_raw_strings
+    - unnecessary_statements
+    - unnecessary_string_escapes
+    - unnecessary_string_interpolations
+    - unnecessary_this
+    - unnecessary_to_list_in_spreads
+    - unnecessary_unawaited
+    - unnecessary_underscores
+    - unreachable_from_main
+    - use_key_in_widget_constructors
