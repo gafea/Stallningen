@@ -19,6 +19,22 @@ class HazardPreset {
     return const [
       // 1. Bathroom Hazards
       HazardPreset(
+        title: 'General Recommendations',
+        category: 'everywhere',
+        explanation: '',
+        dangerScoreIncrease: 40,
+        recommendedProducts: [
+          Product(
+            id: 'slip_spray',
+            name: 'Fall Detection Devices',
+            description: 'Check if you have fallen down on the ground.',
+            price: 24.99,
+            rating: '4.8',
+            iconName: 'clean_hands',
+          ),
+        ],
+      ),
+      HazardPreset(
         title: 'Slippery floor (Bathroom)',
         category: 'floor',
         explanation:
