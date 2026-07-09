@@ -17,7 +17,6 @@ class ScanScreen extends StatefulWidget {
 class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateMixin {
   late AnimationController _scanningController;
   late Animation<double> _scanningAnimation;
-  bool _useMockMode = true;
 
   @override
   void initState() {
@@ -79,11 +78,10 @@ class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateM
             body: Stack(
               fit: StackFit.expand,
               children: [
-                // 1. Fullscreen Viewfinder
+                // 1. Fullscreen Viewfinder (Real Camera Feed)
                 ViewfinderWidget(
                   isFrozen: isAnalyzing || isAnalyzed,
                   isAnalyzing: isAnalyzing,
-                  useMockMode: _useMockMode,
                   onControllerCreated: (_) {},
                 ),
 
@@ -155,7 +153,7 @@ class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateM
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'FallGuard AI',
+                              'Stallningen AI',
                               style: GoogleFonts.outfit(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
@@ -167,7 +165,7 @@ class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateM
                             Text(
                               isAnalyzing
                                   ? 'Analyzing space...'
-                                  : (isAnalyzed ? 'Scan completed' : 'Live Room Viewfinder'),
+                                  : (isAnalyzed ? 'Scan completed' : 'Scan Room For Fall Hazards'),
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 color: Colors.white.withValues(alpha: 0.7),
@@ -175,10 +173,25 @@ class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateM
                             ),
                           ],
                         ),
-                        // Real / Mock Camera toggle
-                        _CameraModeToggle(
-                          useMockMode: _useMockMode,
-                          onChanged: (val) => setState(() => _useMockMode = val),
+                        // Indicator dot showing state
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isAnalyzing ? Colors.amber : (isAnalyzed ? theme.colorScheme.primary : Colors.green),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    (isAnalyzing
+                                            ? Colors.amber
+                                            : (isAnalyzed ? theme.colorScheme.primary : Colors.green))
+                                        .withValues(alpha: 0.5),
+                                blurRadius: 6,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -205,7 +218,7 @@ class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateM
                         // Dynamic Hint Text
                         Text(
                           isAnalyzing
-                              ? 'Scanning room for elderly trip hazards...'
+                              ? 'Analyzing image frame for slip & trip risks...'
                               : (isAnalyzed
                                     ? 'Hazards Identified! Tap highlighted red areas.'
                                     : 'Point at a walkway and press scan button'),
@@ -256,80 +269,6 @@ class _ScanScreenState extends State<ScanScreen> with SingleTickerProviderStateM
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _CameraModeToggle extends StatelessWidget {
-  final bool useMockMode;
-  final ValueChanged<bool> onChanged;
-
-  const _CameraModeToggle({
-    required this.useMockMode,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ToggleOption(
-            label: 'Mock',
-            isSelected: useMockMode,
-            onTap: () => onChanged(true),
-          ),
-          _ToggleOption(
-            label: 'Camera',
-            isSelected: !useMockMode,
-            onTap: () => onChanged(false),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ToggleOption extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ToggleOption({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    var theme = Theme.of(context);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? theme.colorScheme.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.outfit(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.6),
-          ),
-        ),
       ),
     );
   }

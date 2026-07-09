@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class CameraButton extends StatefulWidget {
   final VoidCallback onTap;
@@ -47,6 +48,7 @@ class _CameraButtonState extends State<CameraButton> with SingleTickerProviderSt
   void _handleTapUp(TapUpDetails details) {
     if (!widget.isDisabled && !widget.isLoading) {
       _controller.reverse();
+      HapticFeedback.mediumImpact();
       widget.onTap();
     }
   }
