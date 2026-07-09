@@ -143,7 +143,7 @@ class _PulsingHazardBoxState extends State<_PulsingHazardBox> with SingleTickerP
         builder: (context, child) {
           return CustomPaint(
             painter: _SegmentationPainter(
-              hazardId: widget.hazard.id,
+              category: widget.hazard.category,
               fillColor: theme.colorScheme.error.withValues(alpha: _opacityAnimation.value),
               strokeColor: theme.colorScheme.error,
             ),
@@ -155,12 +155,12 @@ class _PulsingHazardBoxState extends State<_PulsingHazardBox> with SingleTickerP
 }
 
 class _SegmentationPainter extends CustomPainter {
-  final String hazardId;
+  final String category;
   final Color fillColor;
   final Color strokeColor;
 
   _SegmentationPainter({
-    required this.hazardId,
+    required this.category,
     required this.fillColor,
     required this.strokeColor,
   });
@@ -173,14 +173,71 @@ class _SegmentationPainter extends CustomPainter {
 
     var strokePaint = Paint()
       ..color = strokeColor
-      ..strokeWidth = 3.0
+      ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
     var path = Path();
 
-    if (hazardId == 'slippery_floor') {
-      // Draw wavy organic puddle contour for slippery floor
+    if (category == 'bottle') {
+      // Bottle Silhouette Shape
+      path.moveTo(size.width * 0.4, size.height * 0.05);
+      path.lineTo(size.width * 0.6, size.height * 0.05);
+      path.lineTo(size.width * 0.6, size.height * 0.22);
+      path.lineTo(size.width * 0.78, size.height * 0.32);
+      path.lineTo(size.width * 0.78, size.height * 0.95);
+      path.lineTo(size.width * 0.22, size.height * 0.95);
+      path.lineTo(size.width * 0.22, size.height * 0.32);
+      path.lineTo(size.width * 0.4, size.height * 0.22);
+      path.close();
+
+      canvas.drawPath(path, fillPaint);
+      canvas.drawPath(path, strokePaint);
+    } else if (category == 'furniture') {
+      // Chair Silhouette Shape
+      path.moveTo(size.width * 0.25, size.height * 0.05);
+      path.lineTo(size.width * 0.25, size.height * 0.52);
+      path.lineTo(size.width * 0.8, size.height * 0.52);
+      path.lineTo(size.width * 0.8, size.height * 0.95);
+      path.lineTo(size.width * 0.7, size.height * 0.95);
+      path.lineTo(size.width * 0.7, size.height * 0.62);
+      path.lineTo(size.width * 0.35, size.height * 0.62);
+      path.lineTo(size.width * 0.35, size.height * 0.95);
+      path.lineTo(size.width * 0.25, size.height * 0.95);
+      path.close();
+
+      canvas.drawPath(path, fillPaint);
+      canvas.drawPath(path, strokePaint);
+    } else if (category == 'food') {
+      // Bowl Silhouette Shape
+      path.moveTo(size.width * 0.1, size.height * 0.4);
+      path.lineTo(size.width * 0.9, size.height * 0.4);
+      path.cubicTo(
+        size.width * 0.85,
+        size.height * 0.95,
+        size.width * 0.15,
+        size.height * 0.95,
+        size.width * 0.1,
+        size.height * 0.4,
+      );
+      path.close();
+
+      canvas.drawPath(path, fillPaint);
+      canvas.drawPath(path, strokePaint);
+    } else if (category == 'fashion_good') {
+      // Shoe Silhouette Shape
+      path.moveTo(size.width * 0.1, size.height * 0.82);
+      path.lineTo(size.width * 0.38, size.height * 0.35);
+      path.lineTo(size.width * 0.5, size.height * 0.42);
+      path.lineTo(size.width * 0.9, size.height * 0.82);
+      path.lineTo(size.width * 0.9, size.height * 0.95);
+      path.lineTo(size.width * 0.1, size.height * 0.95);
+      path.close();
+
+      canvas.drawPath(path, fillPaint);
+      canvas.drawPath(path, strokePaint);
+    } else if (category == 'floor') {
+      // Wavy Organic Puddle Shape
       path.moveTo(size.width * 0.1, size.height * 0.5);
       path.cubicTo(
         size.width * 0.15,
@@ -202,8 +259,8 @@ class _SegmentationPainter extends CustomPainter {
 
       canvas.drawPath(path, fillPaint);
       canvas.drawPath(path, strokePaint);
-    } else if (hazardId == 'loose_cable') {
-      // Draw serpentine winding line for extension cord segmentation
+    } else if (category == 'cable') {
+      // Winding Cord Shape
       path.moveTo(0, size.height * 0.2);
       path.cubicTo(
         size.width * 0.3,
@@ -214,23 +271,22 @@ class _SegmentationPainter extends CustomPainter {
         size.height * 0.8,
       );
 
-      // Paint cord with thick stroke
       var cordFillPaint = Paint()
-        ..color = fillColor.withValues(alpha: fillColor.a + 0.1)
+        ..color = fillColor.withValues(alpha: (fillColor.a + 0.1).clamp(0.0, 1.0))
         ..strokeWidth = 14.0
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round;
 
       var cordStrokePaint = Paint()
         ..color = strokeColor
-        ..strokeWidth = 3.0
+        ..strokeWidth = 2.5
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round;
 
       canvas.drawPath(path, cordFillPaint);
       canvas.drawPath(path, cordStrokePaint);
-    } else if (hazardId == 'curled_rug') {
-      // Draw curled rug corner polygon/trapezoid
+    } else if (category == 'rug') {
+      // Curled Rug Triangle Shape
       path.moveTo(0, size.height);
       path.lineTo(size.width * 0.85, size.height * 0.95);
       path.lineTo(size.width, size.height * 0.25);
@@ -245,10 +301,11 @@ class _SegmentationPainter extends CustomPainter {
       canvas.drawPath(path, fillPaint);
       canvas.drawPath(path, strokePaint);
     } else {
-      // Default fallback boundary
-      var rect = RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(12));
-      canvas.drawRRect(rect, fillPaint);
-      canvas.drawRRect(rect, strokePaint);
+      // Default Capsule / Oval Silhouette Shape
+      path.addOval(Offset.zero & size);
+
+      canvas.drawPath(path, fillPaint);
+      canvas.drawPath(path, strokePaint);
     }
   }
 

@@ -27,6 +27,7 @@ class Hazard {
   final double relativeY;
   final double relativeWidth;
   final double relativeHeight;
+  final String category;
   final List<Product> recommendedProducts;
 
   const Hazard({
@@ -39,6 +40,7 @@ class Hazard {
     required this.relativeWidth,
     required this.relativeHeight,
     required this.recommendedProducts,
+    this.category = 'default',
   });
 
   static List<Hazard> getMockHazards() {
@@ -46,6 +48,7 @@ class Hazard {
       const Hazard(
         id: 'slippery_floor',
         title: 'Slippery Tiled Floor',
+        category: 'floor',
         explanation:
             'Polished tiles have very low friction when wet or dry. For seniors with balance impairment or gait changes, slippery surfaces increase the risk of a devastating hip fracture or head injury by over 60%.',
         dangerScoreIncrease: 35,
@@ -85,6 +88,7 @@ class Hazard {
       const Hazard(
         id: 'loose_cable',
         title: 'Trailing Extension Cable',
+        category: 'cable',
         explanation:
             'Cords trailing across high-traffic walking paths are high-risk tripping obstacles. Older adults tend to lift their feet less when walking, making low-lying wires highly susceptible to catching feet.',
         dangerScoreIncrease: 25,
@@ -114,6 +118,7 @@ class Hazard {
       const Hazard(
         id: 'curled_rug',
         title: 'Curled Rug Corners',
+        category: 'rug',
         explanation:
             'Loose rugs and runner mats with folded edges or lack of backing are major fall triggers. Tapping a toe against an unsecured edge leads to sudden forward momentum loss, causing a fall.',
         dangerScoreIncrease: 30,
