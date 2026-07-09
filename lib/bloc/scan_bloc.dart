@@ -4,7 +4,8 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_mlkit_subject_segmentation/google_mlkit_subject_segmentation.dart';
+import 'package:ultralytics_yolo/ultralytics_yolo.dart';
+import 'package:ultralytics_yolo/yolo.dart';
 import '../models/hazard.dart';
 import '../models/preset_hazards.dart';
 
@@ -72,15 +73,31 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
     emit(ScanState.initial());
   }
 
-  Future<ui.Image?> _createMaskImage(List<double>? mask, int width, int height) async {
-    if (mask == null || mask.isEmpty || width <= 0 || height <= 0) return null;
+  Future<ui.Image?> _createMaskImage(List<List<double>>? mask, ui.Rect normalizedBox) async {
+    if (mask == null || mask.isEmpty || mask[0].isEmpty) return null;
+    int maskH = mask.length;
+    int maskW = mask[0].length;
+
+    int startX = (normalizedBox.left * maskW).floor().clamp(0, maskW - 1);
+    int startY = (normalizedBox.top * maskH).floor().clamp(0, maskH - 1);
+    int endX = (normalizedBox.right * maskW).ceil().clamp(0, maskW);
+    int endY = (normalizedBox.bottom * maskH).ceil().clamp(0, maskH);
+
+    int width = endX - startX;
+    int height = endY - startY;
+
+    if (width <= 0 || height <= 0) return null;
+
     var rgbaBytes = Uint8List(width * height * 4);
-    for (int i = 0; i < mask.length; i++) {
-      if (mask[i] > 0.5) {
-        rgbaBytes[i * 4] = 255; // R
-        rgbaBytes[i * 4 + 1] = 0; // G
-        rgbaBytes[i * 4 + 2] = 0; // B
-        rgbaBytes[i * 4 + 3] = 120; // A
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        if (mask[startY + y][startX + x] > 0.5) {
+          int index = (y * width + x) * 4;
+          rgbaBytes[index] = 255; // R
+          rgbaBytes[index + 1] = 0; // G
+          rgbaBytes[index + 2] = 0; // B
+          rgbaBytes[index + 3] = 120; // A
+        }
       }
     }
 
@@ -117,22 +134,17 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
       var imageWidth = frameInfo.image.width.toDouble();
       var imageHeight = frameInfo.image.height.toDouble();
 
-      var options = SubjectSegmenterOptions(
-        enableForegroundConfidenceMask: false,
-        enableForegroundBitmap: false,
-        enableMultipleSubjects: SubjectResultOptions(
-          enableConfidenceMask: true,
-          enableSubjectBitmap: false,
-        ),
+      final yolo = YOLO(
+        modelPath: 'yolo26n-seg',
+        task: YOLOTask.segment,
       );
-      var subjectSegmenter = SubjectSegmenter(options: options);
-
-      var inputImage = InputImage.fromFilePath(path);
-      var result = await subjectSegmenter.processImage(inputImage);
-
-      await subjectSegmenter.close();
-
-      var detectedObjects = result.subjects ?? [];
+      await yolo.loadModel();
+      final resultsMap = await yolo.predict(bytes);
+      final detectionsList = resultsMap['detections'] as List?;
+      final detectedObjects = (detectionsList ?? [])
+          .map((d) => YOLOResult.fromMap(d as Map))
+          .toList();
+      await yolo.dispose();
 
       if (detectedObjects.isEmpty) {
         emit(
@@ -145,8 +157,8 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
       }
 
       detectedObjects.sort((a, b) {
-        var areaA = a.width * a.height;
-        var areaB = b.width * b.height;
+        var areaA = a.boundingBox.width * a.boundingBox.height;
+        var areaB = b.boundingBox.width * b.boundingBox.height;
         return areaB.compareTo(areaA);
       });
       var topTwoObjects = detectedObjects.take(2).toList();
@@ -157,13 +169,18 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
       for (var i = 0; i < topTwoObjects.length; i++) {
         var obj = topTwoObjects[i];
 
+        var startX = obj.boundingBox.left;
+        var startY = obj.boundingBox.top;
+        var objWidth = obj.boundingBox.width;
+        var objHeight = obj.boundingBox.height;
+
         double rx, ry, rw, rh;
         if (imageWidth > imageHeight) {
           // 1. Rotate 90-degree sensor landscape to portrait coordinates
-          var rxImg = (imageHeight - (obj.startY + obj.height)) / imageHeight;
-          var ryImg = obj.startX / imageWidth;
-          var rwImg = obj.height / imageHeight;
-          var rhImg = obj.width / imageWidth;
+          var rxImg = (imageHeight - (startY + objHeight)) / imageHeight;
+          var ryImg = startX / imageWidth;
+          var rwImg = objHeight / imageHeight;
+          var rhImg = objWidth / imageWidth;
 
           // 2. Adjust for Viewfinder scale-and-crop if screen size is provided
           var screenWidth = event.screenWidth;
@@ -194,10 +211,10 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
             rh = rhImg;
           }
         } else {
-          rx = obj.startX / imageWidth;
-          ry = obj.startY / imageHeight;
-          rw = obj.width / imageWidth;
-          rh = obj.height / imageHeight;
+          rx = startX / imageWidth;
+          ry = startY / imageHeight;
+          rw = objWidth / imageWidth;
+          rh = objHeight / imageHeight;
         }
 
         rx = rx.clamp(0.0, 0.95);
@@ -205,11 +222,16 @@ class ScanBloc extends Bloc<ScanEvent, ScanState> {
         rw = rw.clamp(0.05, 0.95);
         rh = rh.clamp(0.05, 0.95);
 
-        var preset = presets[random.nextInt(presets.length)];
+        // Find a matching preset based on object label if possible, else random
+        var preset = presets.firstWhere(
+          (p) => p.category.toLowerCase().contains(obj.className.toLowerCase()) || 
+                 obj.className.toLowerCase().contains(p.category.toLowerCase()),
+          orElse: () => presets[random.nextInt(presets.length)],
+        );
 
         ui.Image? maskImage;
-        if (obj.confidenceMask != null) {
-          maskImage = await _createMaskImage(obj.confidenceMask, obj.width, obj.height);
+        if (obj.mask != null) {
+          maskImage = await _createMaskImage(obj.mask, obj.normalizedBox);
         }
 
         mappedHazards.add(
